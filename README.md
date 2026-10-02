@@ -1,51 +1,30 @@
-# Casino Demo Platform — Virtual Credits
+# KenoPlay Casino Demo — Supabase Ready
 
-This project is a mobile-first React/Vite demo casino-style platform. It contains:
+Virtual-credit demo platform. No deposits, withdrawals, or cash value.
 
-- Keno (1–80, up to 10 picks, draw animation, payout table, other-player simulated picks)
-- Aviator-style multiplier demo
-- Dice
-- Roulette
-- Slots
-- Player virtual-credit balance
-- Local admin dashboard to add/deduct virtual credits
-- Player list, platform statistics, game history
-- Local persistence with `localStorage`
-- Responsive phone and desktop layouts
+## What changed
+- Mobile-first Keno layout based on the supplied reference image.
+- 60-second countdown above the 80-number board.
+- At 00:00, 20 Keno results appear one by one in the result panel.
+- Selected numbers and other-player popularity indicators.
+- Animated Aviator take-off/flight/crash-style presentation.
+- Animated Dice, Roulette and Slots rounds.
+- Player registration/login by phone + password.
+- Admin login by email + password.
+- Supabase profiles, game rounds, and admin credit adjustments.
+- Local demo fallback when Supabase environment variables are absent.
+
+## Supabase setup
+1. Create a Supabase project.
+2. In SQL Editor, run `supabase-schema.sql`.
+3. In Authentication > Providers, enable Phone if you want phone authentication.
+4. Create an admin email/password account in Authentication.
+5. After the account exists, run:
+   `update public.profiles set role='admin' where id = (select id from auth.users where email='YOUR_ADMIN_EMAIL');`
+6. Copy `.env.example` to `.env` and fill in:
+   `VITE_SUPABASE_URL=...`
+   `VITE_SUPABASE_ANON_KEY=...`
+7. Run `npm install` then `npm run dev`.
 
 ## Important
-
-This build is **virtual-credit only**. It has no deposits, withdrawals, cash-out, payment processing, or real-money value.
-
-The admin screen is intentionally a **local demo admin**. Because the data is stored in the browser, it is not a secure production administration system.
-
-## Run
-
-1. Install Node.js 20+.
-2. Open this folder in a terminal.
-3. Run:
-
-```bash
-npm install
-npm run dev
-```
-
-4. Open the Vite URL shown in the terminal.
-
-## Build
-
-```bash
-npm run build
-```
-
-## How to test
-
-- Start on the Games screen.
-- Keno is the first game. Select up to 10 numbers, choose a stake, and press BET.
-- Use the other game buttons to test Aviator, Dice, Roulette and Slots.
-- Open **Admin** in the top bar to add or deduct virtual credits from the demo players.
-- The Reset demo data button restores the original players and balances.
-
-## Production next step
-
-For a real multi-user deployment, replace the localStorage store with a server-side database such as Supabase, add authentication and Row Level Security, and move all balance-changing and game-result logic to trusted server/edge functions. Do not trust browser-side credit balances or game results.
+The UI and virtual-credit flows are a demo. For a production game, random results and credit settlement must run in trusted server-side/Edge Function code rather than accepting a payout value from the browser.
