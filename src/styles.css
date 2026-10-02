@@ -287,3 +287,75 @@ body{font-family:Arial,Helvetica,sans-serif;background:#090e0d}
   .other-tickets{gap:6px}
   .other-ticket .ticket-numbers span{min-height:25px;font-size:10px}
 }
+
+/* =========================================================
+   ANAS BET BRANDING + LIVE PLAYER HEADER
+   ========================================================= */
+.topbar{
+  min-height:58px;
+  background:#090b0a;
+  border-bottom:1px solid #1d3029;
+}
+.brand{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:max-content;
+}
+.fastkeno-logo{
+  width:58px;
+  height:34px;
+  object-fit:contain;
+  display:block;
+}
+.site-name{
+  color:#f2f5f2;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:19px;
+  font-weight:900;
+  letter-spacing:.8px;
+  white-space:nowrap;
+}
+.site-name span{color:#55dfa0}
+.header-players{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-left:auto;
+  padding:7px 11px;
+  border:1px solid #244238;
+  border-radius:4px;
+  background:#101a18;
+  color:#6ee4a8;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.55px;
+  white-space:nowrap;
+}
+.header-players strong{
+  color:#f0f5f2;
+  font-size:14px;
+}
+.live-dot{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#4fe29a;
+  box-shadow:0 0 7px rgba(79,226,154,.8);
+  animation:livePulse 1.4s ease-in-out infinite;
+}
+@keyframes livePulse{50%{opacity:.35;transform:scale(.75)}}
+.wallet{margin-left:8px}
+
+@media(max-width:720px){
+  .topbar{height:58px;padding:0 9px;gap:7px}
+  .fastkeno-logo{width:53px;height:31px}
+  .site-name{font-size:16px;letter-spacing:.5px}
+  .header-players{margin-left:auto;padding:6px 7px;font-size:8px;gap:4px}
+  .header-players strong{font-size:12px}
+  .wallet{margin-left:0}
+  .wallet span{display:none}
+  .wallet strong{padding:7px 8px;font-size:10px}
+  .logout{width:34px;height:34px;font-size:21px}
+}
