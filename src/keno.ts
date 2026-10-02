@@ -1,5 +1,5 @@
 export type GameId = 'keno' | 'aviator' | 'dice' | 'roulette' | 'slots'
-export type Player = { id: string; username: string; phone: string; credits: number; active: boolean; joined: number }
+export type Player = { id: string; username: string; phone: string; credits: number; active: boolean; joined: number; role?: 'player' | 'admin' }
 export type Round = { id: string; at: number; game: GameId; stake: number; payout: number; label: string }
 export const nums = () => Array.from({ length: 80 }, (_, i) => i + 1)
 export const rnd = (max: number) => Math.floor(Math.random() * max)
