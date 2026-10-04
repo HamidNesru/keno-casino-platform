@@ -10,7 +10,7 @@ const ADMIN_EMAIL = 'admin@kenodemo.local'
 const ADMIN_PASSWORD = 'Admin123!'
 const games: {id:GameId;label:string;icon:string}[] = [{id:'keno',label:'Keno',icon:'80'},{id:'aviator',label:'Aviator',icon:'✈'},{id:'dice',label:'Dice',icon:'⚄'},{id:'roulette',label:'Roulette',icon:'◎'},{id:'slots',label:'Slots',icon:'♜'}]
 
-const money=(n:number)=>`${fmt(n)} VC`
+const money=(n:number)=>`${fmt(n)} Br`
 function localLoad(): LocalStore { try { const x=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null'); if(x?.players) return x } catch{} return {players:[],rounds:[],session:null,admin:false} }
 
 export default function App(){
