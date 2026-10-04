@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction, type CSSProperties, type ReactNode } from 'react'
 import './styles.css'
 import { id, nums, rnd, shuffle, fmt, type GameId, type Player, type Round } from './keno'
-import { supabase, supabaseConfigured } from './lib/supabase'
+import { supabase, supabaseConfigured, supabaseHost } from './lib/supabase'
 
 type Profile = Player & { role: 'player' | 'admin' }
-type LocalStore = { players: Player[]; rounds: Round[]; session: string | null; admin: boolean }
+type Deposit = { id: string; player_id: string; phone: string; message: string; status: 'pending'|'done'|'rejected'; created_at: number }
+type LocalStore = { players: Player[]; rounds: Round[]; session: string | null; admin: boolean; deposits?: Deposit[] }
+const WALLET_NUMBER = '0943050178'
 const LOCAL_KEY = 'kenoplay-demo-v5'
 const ADMIN_EMAIL = 'admin@kenodemo.local'
 const ADMIN_PASSWORD = 'Admin123!'
@@ -25,6 +27,7 @@ export default function App(){
   const [page,setPage]=useState<'games'|'admin'>('games')
   const [message,setMessage]=useState('')
   const [loading,setLoading]=useState(false)
+  const [walletOpen,setWalletOpen]=useState(false)
 
   useEffect(()=>{ localStorage.setItem(LOCAL_KEY,JSON.stringify(local)) },[local])
   useEffect(()=>{
@@ -38,14 +41,40 @@ export default function App(){
   const player=profile||localPlayer
   const isAdmin = Boolean(local.admin || profile?.role === 'admin')
   async function logout(){ if(supabase) await supabase.auth.signOut(); setProfile(null); setLocal(s=>({...s,session:null,admin:false})); setPage('games'); setMode('login') }
-  async function debit(stake:number){ if(!player||player.credits<stake){setMessage('Not enough virtual credits.');return false}; if(supabase){ const {data,error}=await supabase.rpc('change_own_credits',{delta:-stake,reason:'Game stake'}); if(error){setMessage(error.message);return false}; setProfile(p=>p?{...p,credits:Number(data)}:p); return true } setLocal(s=>({...s,players:s.players.map(p=>p.id===player.id?{...p,credits:p.credits-stake}:p)})); return true }
+  async function debit(stake:number){ if(!player||player.credits<stake){setMessage('NOT SUFFICIENT BALANCE · Open WALLET to deposit');return false}; if(supabase){ const {data,error}=await supabase.rpc('change_own_credits',{delta:-stake,reason:'Game stake'}); if(error){setMessage(error.message);return false}; setProfile(p=>p?{...p,credits:Number(data)}:p); return true } setLocal(s=>({...s,players:s.players.map(p=>p.id===player.id?{...p,credits:p.credits-stake}:p)})); return true }
   async function settle(stake:number,payout:number,label:string,gameId:GameId,metadata:Record<string,unknown>={}){ if(!player)return; if(supabase){ const {data,error}=await supabase.rpc('change_own_credits',{delta:payout,reason:`${gameId} payout`}); if(!error)setProfile(p=>p?{...p,credits:Number(data)}:p); await supabase.from('game_rounds').insert({player_id:player.id,game:gameId,stake,payout,label,metadata}); } else { setLocal(s=>({...s,players:s.players.map(p=>p.id===player.id?{...p,credits:p.credits+payout}:p),rounds:[{id:id(),at:Date.now(),game:gameId,stake,payout,label},...s.rounds]})) } }
   if(!player && !local.admin) return <Auth mode={mode} setMode={setMode} setLocal={setLocal} local={local} setProfile={setProfile} loading={loading} setLoading={setLoading}/>
   if(isAdmin) return <Admin local={local} setLocal={setLocal} logout={logout}/>
-  return <div className="app"><Header player={player!} admin={false} logout={logout}/><main><GameNav game={game} setGame={setGame}/>{game==='keno'&&<Keno player={player!} debit={debit} settle={settle} message={message} setMessage={setMessage}/>} {game==='aviator'&&<Aviator player={player!} debit={debit} settle={settle} message={message} setMessage={setMessage}/>} {game==='dice'&&<Dice player={player!} debit={debit} settle={settle} message={message} setMessage={setMessage}/>} {game==='roulette'&&<Roulette player={player!} debit={debit} settle={settle} message={message} setMessage={setMessage}/>} {game==='slots'&&<Slots player={player!} debit={debit} settle={settle} message={message} setMessage={setMessage}/>}</main></div>
+  return <div className="app"><Header player={player!} admin={false} logout={logout} onWallet={()=>setWalletOpen(true)}/>{walletOpen&&<WalletModal player={player!} local={local} setLocal={setLocal} close={()=>setWalletOpen(false)}/>}<main><GameNav game={game} setGame={setGame}/>{game==='keno'&&<Keno player={player!} debit={debit} settle={settle} message={message} setMessage={setMessage}/>} {game==='aviator'&&<Aviator player={player!} debit={debit} settle={settle} message={message} setMessage={setMessage}/>} {game==='dice'&&<Dice player={player!} debit={debit} settle={settle} message={message} setMessage={setMessage}/>} {game==='roulette'&&<Roulette player={player!} debit={debit} settle={settle} message={message} setMessage={setMessage}/>} {game==='slots'&&<Slots player={player!} debit={debit} settle={settle} message={message} setMessage={setMessage}/>}</main></div>
 }
 
-function Header({player,admin,logout}:{player:Player;admin:boolean;logout:()=>void}){return <header className="topbar"><div className="brand"><img src="/fastkeno.webp" alt="FAST KENO" className="fastkeno-logo"/><div className="site-name">ANAS <span>BET</span></div></div><div className="header-players"><span className="live-dot"></span><strong>128</strong><span>PLAYERS</span></div><div className="wallet"><span>{maskPhone(player.phone)||'Player'}</span><strong>{money(player.credits)}</strong></div>{admin&&<button className="admin-top">ADMIN</button>}<button className="logout" onClick={logout}>×</button></header>}
+function Header({player,admin,logout,onWallet}:{player:Player;admin:boolean;logout:()=>void;onWallet?:()=>void}){return <header className="topbar"><div className="brand"><img src="/fastkeno.webp" alt="FAST KENO" className="fastkeno-logo"/><div className="site-name">ANAS <span>BET</span></div></div><div className="header-players"><span className="live-dot"></span><strong>128</strong><span>PLAYERS</span></div><div className="wallet"><span>{maskPhone(player.phone)||'Player'}</span><strong>{money(player.credits)}</strong></div>{onWallet&&<button className="wallet-btn" onClick={onWallet}>WALLET</button>}{admin&&<button className="admin-top">ADMIN</button>}<button className="logout" onClick={logout}>×</button></header>}
+
+function WalletModal({player,local,setLocal,close}:{player:Player;local:LocalStore;setLocal:Dispatch<SetStateAction<LocalStore>>;close:()=>void}){
+ const [text,setText]=useState(''),[copied,setCopied]=useState(false),[busy,setBusy]=useState(false),[done,setDone]=useState(false),[err,setErr]=useState('')
+ async function copy(){try{await navigator.clipboard.writeText(WALLET_NUMBER)}catch{const t=document.createElement('textarea');t.value=WALLET_NUMBER;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove()};setCopied(true);setTimeout(()=>setCopied(false),2000)}
+ async function confirm(){
+  setErr('');const msg=text.trim();if(msg.length<10){setErr('Paste the full Telebirr message you received.');return}
+  setBusy(true)
+  try{
+   if(supabase){const {error}=await supabase.from('deposit_requests').insert({player_id:player.id,phone:player.phone,message:msg});if(error)throw error}
+   else setLocal(s=>({...s,deposits:[{id:id(),player_id:player.id,phone:player.phone,message:msg,status:'pending',created_at:Date.now()},...(s.deposits||[])]}))
+   setDone(true);setText('')
+  }catch(e:any){setErr(e.message||'Could not send. Try again.')}finally{setBusy(false)}
+ }
+ return <div className="modal-back" onClick={close}><div className="wallet-modal" onClick={e=>e.stopPropagation()}>
+  <button className="modal-x" onClick={close}>×</button>
+  <div className="tele-head"><img src="/telebirr.png" alt="telebirr" onError={e=>{(e.currentTarget as HTMLImageElement).style.display='none';(e.currentTarget.nextElementSibling as HTMLElement).style.display='inline-block'}}/><span className="tele-fallback">telebirr</span></div>
+  {done?<div className="wallet-done"><b>✓ Sent!</b><p>Your Telebirr message was sent to the admin. Your balance will be updated after it is checked.</p><button className="primary wide" onClick={close}>CLOSE</button></div>:<>
+   <div className="wallet-label">Copy this number</div>
+   <div className="wallet-number"><strong>{WALLET_NUMBER}</strong><button onClick={copy}>{copied?'COPIED ✓':'COPY'}</button></div>
+   <div className="wallet-label">Send your money to this number, then paste the Telebirr message below</div>
+   <textarea placeholder="Paste Telebirr message" value={text} onChange={e=>setText(e.target.value)} rows={4}/>
+   {err&&<div className="error">{err}</div>}
+   <button className="primary wide" disabled={busy} onClick={confirm}>{busy?'SENDING…':'CONFIRM'}</button>
+  </>}
+ </div></div>
+}
 
 function maskPhone(phone:string){const raw=phone.replace(/\s/g,''); if(!raw) return ''; if(raw.length<=4) return `${raw.slice(0,1)}**${raw.slice(-1)}`; return `${raw.slice(0,2)}**${raw.slice(-2)}`}
 function GameNav({game,setGame}:{game:GameId;setGame:(g:GameId)=>void}){return <nav className="game-nav">{games.map(g=><button key={g.id} className={game===g.id?'on':''} onClick={()=>setGame(g.id)}><span>{g.icon}</span>{g.label}</button>)}</nav>}
@@ -53,7 +82,7 @@ function GameNav({game,setGame}:{game:GameId;setGame:(g:GameId)=>void}){return <
 function Auth({mode,setMode,setLocal,local,setProfile,loading,setLoading}:{mode:'login'|'register'|'admin';setMode:(m:'login'|'register'|'admin')=>void;setLocal:Dispatch<SetStateAction<LocalStore>>;local:LocalStore;setProfile:(p:Profile|null)=>void;loading:boolean;setLoading:(v:boolean)=>void}){
  const [phone,setPhone]=useState(''),[password,setPassword]=useState(''),[email,setEmail]=useState(ADMIN_EMAIL),[error,setError]=useState('')
  async function submit(){setError('');setLoading(true);try{if(supabase){ if(mode==='admin'){const {data,error}=await supabase.auth.signInWithPassword({email,password}); if(error)throw error; const {data:p}=await supabase.from('profiles').select('*').eq('id',data.user.id).single(); if(p?.role!=='admin'){await supabase.auth.signOut();throw new Error('This account is not an admin.')} setProfile({id:p.id,username:p.display_name||'Admin',phone:p.phone||'',credits:Number(p.credits),active:true,joined:Date.now(),role:p.role}); return} if(mode==='register'){const ph=normPhone(phone); if(!/^\+[0-9]{7,15}$/.test(ph))throw new Error('Enter a valid phone number.'); if(password.length<6)throw new Error('Password must be at least 6 characters.'); const {data,error}=await supabase.auth.signUp({email:phoneEmail(phone),password,options:{data:{phone:ph,display_name:`Player ${ph.slice(-4)}`}}}); if(error)throw error; if(data.user&&!data.session)setError('Account created. In Supabase turn OFF "Confirm email" (Authentication > Providers > Email), then log in.'); else if(data.user){const {data:p}=await supabase.from('profiles').select('*').eq('id',data.user.id).single(); if(p)setProfile({id:p.id,username:p.display_name||'Player',phone:p.phone||phone,credits:Number(p.credits),active:true,joined:Date.now(),role:p.role})} } else {const {data,error}=await supabase.auth.signInWithPassword({email:phoneEmail(phone),password}); if(error)throw new Error('Wrong phone number or password.'); const {data:p}=await supabase.from('profiles').select('*').eq('id',data.user.id).single(); if(p)setProfile({id:p.id,username:p.display_name||'Player',phone:p.phone||phone,credits:Number(p.credits),active:true,joined:Date.now(),role:p.role})} } else { if(mode==='admin'){if(email.trim().toLowerCase()!==ADMIN_EMAIL||password!==ADMIN_PASSWORD)throw new Error('Admin email or password is incorrect.');setLocal(s=>({...s,admin:true}));return} const p=normPhone(phone); if(mode==='register'){if(!/^\+[0-9]{7,15}$/.test(p))throw new Error('Enter a valid phone number.');if(password.length<6)throw new Error('Password must be at least 6 characters.');if(local.players.some(x=>x.phone===p))throw new Error('Phone already registered.');const a={id:id(),username:`Player ${p.slice(-4)}`,phone:p,credits:0,active:true,joined:Date.now()};setLocal(s=>({...s,players:[...s.players,a],session:a.id}))}else{const a=local.players.find(x=>x.phone===p);if(!a)throw new Error('Player not found.');;setLocal(s=>({...s,session:a.id}))}}}catch(e:any){setError(e.message||'Something went wrong')}finally{setLoading(false)}}
- return <div className="auth-page"><div className="auth-card"><div className="auth-logo"><span>◆</span> KENOPLAY</div>{mode!=='admin'?<><div className="auth-tabs"><button className={mode==='login'?'on':''} onClick={()=>setMode('login')}>LOGIN</button><button className={mode==='register'?'on':''} onClick={()=>setMode('register')}>REGISTER</button></div><h1>{mode==='register'?'Create your account':'Welcome back'}</h1><p>Phone number and password. Virtual credits only.</p><label>Phone number<input inputMode="tel" placeholder="+251911234567" value={phone} onChange={e=>setPhone(e.target.value)}/></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)}/></label></>:<><h1>Admin sign in</h1><p>Only approved admin accounts can access the control center.</p><label>Email<input value={email} onChange={e=>setEmail(e.target.value)}/></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)}/></label></>}{error&&<div className="error">{error}</div>}<button className="primary" disabled={loading} onClick={submit}>{loading?'PLEASE WAIT…':mode==='admin'?'ADMIN LOGIN':mode==='register'?'CREATE ACCOUNT':'LOGIN'}</button>{mode==='admin'?<button className="link" onClick={()=>setMode('login')}>Back to player login</button>:<button className="link" onClick={()=>setMode('admin')}>Admin sign in</button>} {!supabaseConfigured&&<small className="demo">Demo mode is active. Add Supabase keys to enable shared accounts.</small>}</div></div>
+ return <div className="auth-page"><div className="auth-card"><div className="auth-logo"><span>◆</span> KENOPLAY</div>{mode!=='admin'?<><div className="auth-tabs"><button className={mode==='login'?'on':''} onClick={()=>setMode('login')}>LOGIN</button><button className={mode==='register'?'on':''} onClick={()=>setMode('register')}>REGISTER</button></div><h1>{mode==='register'?'Create your account':'Welcome back'}</h1><p>Phone number and password. Virtual credits only.</p><label>Phone number<input inputMode="tel" placeholder="+251911234567" value={phone} onChange={e=>setPhone(e.target.value)}/></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)}/></label></>:<><h1>Admin sign in</h1><p>Only approved admin accounts can access the control center.</p><label>Email<input value={email} onChange={e=>setEmail(e.target.value)}/></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)}/></label></>}{error&&<div className="error">{error}</div>}<button className="primary" disabled={loading} onClick={submit}>{loading?'PLEASE WAIT…':mode==='admin'?'ADMIN LOGIN':mode==='register'?'CREATE ACCOUNT':'LOGIN'}</button>{mode==='admin'?<button className="link" onClick={()=>setMode('login')}>Back to player login</button>:<button className="link" onClick={()=>setMode('admin')}>Admin sign in</button>} {supabaseConfigured&&<small className="demo">Connected to: {supabaseHost}</small>}{!supabaseConfigured&&<small className="demo">Demo mode is active. Add Supabase keys to enable shared accounts.</small>}</div></div>
 }
 
 function flyIn(el:HTMLSpanElement|null){
@@ -66,7 +95,7 @@ function flyIn(el:HTMLSpanElement|null){
  el.classList.add('fly')
 }
 function Keno({player,debit,settle,message,setMessage}:{player:Player;debit:(n:number)=>Promise<boolean>;settle:(s:number,p:number,l:string,g:GameId,m?:Record<string,unknown>)=>Promise<void>;message:string;setMessage:(s:string)=>void}){
- const [picks,setPicks]=useState<number[]>([]),[sessions,setSessions]=useState<{id:number;numbers:number[];stake:number;accepted:boolean;payout?:number}[]>([]),[drawn,setDrawn]=useState<number[]>([]),[current,setCurrent]=useState<number|null>(null),[bet,setBet]=useState(2),[left,setLeft]=useState(60),[drawing,setDrawing]=useState(false),[last,setLast]=useState<number[]>([]),[tab,setTab]=useState('game'),[round,setRound]=useState(0),[settled,setSettled]=useState(false)
+ const [picks,setPicks]=useState<number[]>([]),[sessions,setSessions]=useState<{id:number;numbers:number[];stake:number;accepted:boolean;payout?:number}[]>([]),[drawn,setDrawn]=useState<number[]>([]),[current,setCurrent]=useState<number|null>(null),[bet,setBet]=useState(2),[left,setLeft]=useState(60),[drawing,setDrawing]=useState(false),[last,setLast]=useState<number[]>([]),[tab,setTab]=useState('game'),[round,setRound]=useState(0),[settled,setSettled]=useState(false),[betting,setBetting]=useState(false)
  const otherTickets=useMemo(()=>Array.from({length:8},(_,i)=>({id:`ticket-${round}-${i}`,name:['y**e','m**n','a**r','h**d','s**a','d**l','k**m','t**r'][i],stake:[20,50,100,200,500,30,80,150][i],numbers:shuffle(nums()).slice(0,1+rnd(10)).sort((a,b)=>a-b)})),[round])
  const playerCount=128+((round*7)%24)
  useEffect(()=>{if(drawing||settled)return;const t=setInterval(()=>setLeft(v=>v<=1?0:v-1),1000);return()=>clearInterval(t)},[drawing,settled])
@@ -74,15 +103,19 @@ function Keno({player,debit,settle,message,setMessage}:{player:Player;debit:(n:n
  function toggle(n:number){if(drawing)return;setPicks(p=>p.includes(n)?p.filter(x=>x!==n):p.length<10?[...p,n]:p)}
  function quick(){if(!drawing)setPicks(shuffle(nums()).slice(0,Math.min(10,Math.max(1,1+rnd(10)))).sort((a,b)=>a-b))}
  async function placeBet(){
+   if(betting)return
    if(picks.length<1||picks.length>10){setMessage('Choose 1 to 10 numbers for this session.');return}
    if(sessions.length>=20){setMessage('Maximum 20 Keno sessions reached.');return}
-   if(bet<1||bet>player.credits){setMessage('Not enough virtual credits.');return}
-   if(await debit(bet)){
-     const id=Date.now()+sessions.length
-     setSessions(v=>[...v,{id,numbers:[...picks].sort((a,b)=>a-b),stake:bet,accepted:true}])
-     setPicks([])
-     setMessage(`SESSION ${sessions.length+1} ACCEPTED · ${picks.length} NUMBERS · ${money(bet)}`)
-   }
+   if(bet<1||bet>player.credits){setMessage('NOT SUFFICIENT BALANCE · Open WALLET to deposit');return}
+   const chosen=[...picks].sort((a,b)=>a-b),stake=bet,no=sessions.length+1
+   setBetting(true);setMessage('PLEASE WAIT…')
+   setPicks([]) // green lights go off right away so the board is ready for the next session
+   const ok=await debit(stake)
+   if(ok){
+     setSessions(v=>[...v,{id:Date.now()+v.length,numbers:chosen,stake,accepted:true}])
+     setMessage(`BET ACCEPTED · SESSION ${no} · ${chosen.length} NUMBERS · ${money(stake)}`)
+   }else setPicks(chosen)
+   setBetting(false)
  }
  async function startDraw(){
    setDrawing(true);setDrawn([]);setLast([]);setCurrent(null)
@@ -99,7 +132,7 @@ function Keno({player,debit,settle,message,setMessage}:{player:Player;debit:(n:n
    setMessage(totalPayout?`WIN ${money(totalPayout)} · ${winCount} SESSION${winCount===1?'':'S'} WON`:`DRAW COMPLETE · ${sessions.length} SESSION${sessions.length===1?'':'S'} PLAYED`)
    // Draw finished: keep result box + all selected numbers on screen (no 80-number grid) for a while
    setDrawing(false);setCurrent(null);setSettled(true)
-   setTimeout(()=>{setRound(x=>x+1);setSessions([]);setPicks([]);setDrawn([]);setLeft(60);setSettled(false)},12000)
+   setTimeout(()=>{setRound(x=>x+1);setSessions([]);setPicks([]);setDrawn([]);setLast([]);setLeft(60);setSettled(false)},12000)
  }
  const countdown=`${String(Math.floor(left/60)).padStart(2,'0')}:${String(left%60).padStart(2,'0')}`
  const displayResults=drawing?drawn:last
@@ -110,12 +143,12 @@ function Keno({player,debit,settle,message,setMessage}:{player:Player;debit:(n:n
      <div className="keno-head"><div className="mini-balance"><b>{money(player.credits)}</b><span>ID: {maskPhone(player.phone)||'PLAYER'}</span></div><div className="timer">{countdown}</div><div className="menu">☰</div></div>
      <div className="keno-result-box">
        <div className="result-title-row"><strong>{drawing?'LIVE DRAW':settled?'DRAW COMPLETE':'NEXT DRAW'}</strong><span>{drawing?`${drawn.length} / 20`:'20 NUMBERS'}</span></div>
-       {drawing || settled || last.length>0 ? <div className="draw-result-grid">{displayResults.map((n,i)=><span ref={flyIn} className={`draw-number ${allMyNumbers.includes(n)?'my-hit':''}`} key={`${n}-${i}`}>{n}</span>)}{drawing&&Array.from({length:Math.max(0,20-drawn.length)}).map((_,i)=><span className="draw-number empty" key={`empty-${i}`}>—</span>)}</div> : <div className="next-draw-message"><div className="count-large">{countdown}</div><div>Choose 1 to 10 numbers per session · up to 20 sessions</div></div>}
+       {drawing || settled || last.length>0 ? <div className="draw-result-grid">{displayResults.map((n,i)=><span ref={flyIn} className={`draw-number ${(drawing||settled)&&allMyNumbers.includes(n)?'my-hit':''}`} key={`${n}-${i}`}>{n}</span>)}{drawing&&Array.from({length:Math.max(0,20-drawn.length)}).map((_,i)=><span className="draw-number empty" key={`empty-${i}`}>—</span>)}</div> : <div className="next-draw-message"><div className="count-large">{countdown}</div><div>Choose 1 to 10 numbers per session · up to 20 sessions</div></div>}
      </div>
      {drawing&&<div className="draw-stage-label draw-label-only" aria-live="polite">DRAWING NUMBER {Math.min(drawn.length+1,20)} OF 20</div>}
      {showBoard&&<>
        <div className="keno-grid">{nums().map(n=><button key={n} className={picks.includes(n)?'pick':''} onClick={()=>toggle(n)}><b>{n}</b></button>)}</div>
-       <div className="betbar"><button onClick={()=>setBet(v=>Math.max(1,v-1))}>−</button><strong>{bet}</strong><button onClick={()=>setBet(v=>Math.min(Math.max(1,player.credits),v+1))}>+</button><button className="x2" onClick={()=>setBet(v=>Math.min(Math.max(1,player.credits),v*2))}>X2</button><button className="max" onClick={()=>setBet(Math.max(1,Math.floor(player.credits/10)))}>MAX</button><button className="bet-btn" disabled={picks.length<1||sessions.length>=20} onClick={placeBet}>{sessions.length>=20?'20/20':'BET'}</button></div>
+       <div className="betbar"><button onClick={()=>setBet(v=>Math.max(1,v-1))}>−</button><strong>{bet}</strong><button onClick={()=>setBet(v=>Math.min(Math.max(1,player.credits),v+1))}>+</button><button className="x2" onClick={()=>setBet(v=>Math.min(Math.max(1,player.credits),v*2))}>X2</button><button className="max" onClick={()=>setBet(Math.max(1,Math.floor(player.credits/10)))}>MAX</button><button className="bet-btn" disabled={picks.length<1||sessions.length>=20||betting} onClick={placeBet}>{sessions.length>=20?'20/20':betting?'WAIT':'BET'}</button></div>
        <div className="quick-row"><button onClick={quick}>QUICK PICK</button><span>{message}</span><button onClick={()=>{setPicks([]);setMessage('')}}>CLEAR</button></div>
      </>}
      {settled&&<div className="message">{message}</div>}
@@ -142,9 +175,26 @@ function Slots({player,debit,settle,message,setMessage}:any){const symbols=['�
 function Admin({local,setLocal,logout}:{local:LocalStore;setLocal:Dispatch<SetStateAction<LocalStore>>;logout:()=>void}){
  const [remote,setRemote]=useState<Player[]>([]),[search,setSearch]=useState(''),[amount,setAmount]=useState(1000),[sel,setSel]=useState(''),[busy,setBusy]=useState(false)
  useEffect(()=>{ if(!supabase)return; supabase.from('profiles').select('id,phone,display_name,credits,created_at,role').order('created_at',{ascending:false}).then(({data})=>{ if(data)setRemote(data.filter(x=>x.role==='player').map(x=>({id:x.id,username:x.display_name||'Player',phone:x.phone||'',credits:Number(x.credits),active:true,joined:new Date(x.created_at).getTime()}))) }) },[])
+  const [deps,setDeps]=useState<Deposit[]>([]),[bell,setBell]=useState(false)
+ useEffect(()=>{
+  if(!supabase)return
+  const sb=supabase
+  const load=()=>sb.from('deposit_requests').select('*').order('created_at',{ascending:false}).limit(100).then(({data})=>{if(data)setDeps(data.map((d:any)=>({id:String(d.id),player_id:d.player_id,phone:d.phone||'',message:d.message,status:d.status,created_at:new Date(d.created_at).getTime()})))})
+  load()
+  const ch=sb.channel('deposit-requests').on('postgres_changes',{event:'*',schema:'public',table:'deposit_requests'},()=>{setBell(true);load()}).subscribe()
+  const t=setInterval(load,15000) // backup in case realtime is not enabled
+  return ()=>{clearInterval(t);sb.removeChannel(ch)}
+ },[])
+ const deposits=supabase?deps:(local.deposits||[])
+ const pending=deposits.filter(d=>d.status==='pending')
+ async function markDeposit(d:Deposit,status:'done'|'rejected'){
+  if(supabase){const {error}=await supabase.from('deposit_requests').update({status}).eq('id',d.id);if(error){alert(error.message);return};setDeps(v=>v.map(x=>x.id===d.id?{...x,status}:x))}
+  else setLocal(s=>({...s,deposits:(s.deposits||[]).map(x=>x.id===d.id?{...x,status}:x)}))
+ }
+ function openPlayer(d:Deposit){setSearch(d.phone.replace(/\D/g,''));setSel(d.player_id);window.scrollTo({top:0,behavior:'smooth'})}
  const players=supabase?remote:local.players
  const q=search.replace(/\D/g,'').replace(/^0/,''),filtered=players.filter(p=>!q||p.phone.replace(/\D/g,'').includes(q))
  const target=players.find(p=>p.id===(sel||filtered[0]?.id))
  async function adjust(delta:number){ if(!target)return;setBusy(true);try{if(supabase){const {data,error}=await supabase.rpc('adjust_player_credits',{target:target.id,delta,note:delta>=0?'Admin credit addition':'Admin credit deduction'});if(error)throw error;setRemote(v=>v.map(p=>p.id===target.id?{...p,credits:Number(data)}:p))}else setLocal(s=>({...s,players:s.players.map(p=>p.id===target.id?{...p,credits:Math.max(0,p.credits+delta)}:p)}))}catch(e:any){alert(e.message||'Credit adjustment failed')}finally{setBusy(false)}}
- return <div className="admin-page"><header className="topbar"><div className="brand"><span className="brand-mark">◆</span><b>KENOPLAY ADMIN</b></div><button className="logout" onClick={logout}>×</button></header><main className="admin-wrap"><div className="admin-title"><div><small>ADMIN CONTROL CENTER</small><h1>Virtual Credit Control</h1><p>Search players by phone number and add or deduct virtual credits.</p></div><span className="connection">{supabase?'● SUPABASE CONNECTED':'● DEMO MODE'}</span></div><div className="admin-stats"><div><small>PLAYERS</small><b>{players.length}</b></div><div><small>TOTAL CREDITS</small><b>{money(players.reduce((a,p)=>a+p.credits,0))}</b></div></div><div className="admin-columns"><section className="side-panel"><h3>SEARCH PLAYER BY PHONE</h3><input placeholder="+251911234567" value={search} onChange={e=>setSearch(e.target.value)}/>{filtered.map(p=><button className={target?.id===p.id?'player-row selected':'player-row'} onClick={()=>setSel(p.id)} key={p.id}><span><b>{p.phone}</b><small>{p.username}</small></span><strong>{money(p.credits)}</strong></button>)}{!filtered.length&&<p className="muted">No player found.</p>}</section><section className="side-panel"><h3>ADD / DEDUCT VIRTUAL CREDITS</h3>{target?<><div className="selected-admin"><span>{target.phone}</span><strong>{money(target.credits)}</strong></div><input type="number" value={amount} onChange={e=>setAmount(Math.max(1,+e.target.value||1))}/><div className="adjust-buttons"><button disabled={busy} onClick={()=>adjust(amount)}>+ ADD CREDITS</button><button disabled={busy} onClick={()=>adjust(-amount)}>− DEDUCT</button></div></>:<p>Search for a player.</p>}</section></div></main></div>
+ return <div className="admin-page"><header className="topbar"><div className="brand"><span className="brand-mark">◆</span><b>KENOPLAY ADMIN</b></div><button className="logout" onClick={logout}>×</button></header><main className="admin-wrap"><div className="admin-title"><div><small>ADMIN CONTROL CENTER</small><h1>Virtual Credit Control</h1><p>Search players by phone number and add or deduct virtual credits.</p></div><span className="connection">{supabase?'● SUPABASE CONNECTED':'● DEMO MODE'}</span></div><section className="notif-panel"><div className="notif-head"><b>🔔 NOTIFICATIONS</b><span className={pending.length?'notif-count on':'notif-count'} onClick={()=>setBell(false)}>{pending.length} NEW</span></div>{!deposits.length&&<p className="muted">No messages yet. Player deposit messages appear here instantly.</p>}{deposits.map(d=><div className={`notif-item ${d.status}`} key={d.id}><div className="notif-top"><b>{d.phone||'Player'}</b><small>{new Date(d.created_at).toLocaleString()}</small></div><pre>{d.message}</pre><div className="notif-actions"><button onClick={()=>openPlayer(d)}>FIND PLAYER</button>{d.status==='pending'?<><button className="ok" onClick={()=>markDeposit(d,'done')}>MARK DONE</button><button className="no" onClick={()=>markDeposit(d,'rejected')}>REJECT</button></>:<span className="notif-status">{d.status.toUpperCase()}</span>}</div></div>)}</section><div className="admin-stats"><div><small>PLAYERS</small><b>{players.length}</b></div><div><small>TOTAL CREDITS</small><b>{money(players.reduce((a,p)=>a+p.credits,0))}</b></div></div><div className="admin-columns"><section className="side-panel"><h3>SEARCH PLAYER BY PHONE</h3><input placeholder="+251911234567" value={search} onChange={e=>setSearch(e.target.value)}/>{filtered.map(p=><button className={target?.id===p.id?'player-row selected':'player-row'} onClick={()=>setSel(p.id)} key={p.id}><span><b>{p.phone}</b><small>{p.username}</small></span><strong>{money(p.credits)}</strong></button>)}{!filtered.length&&<p className="muted">No player found.</p>}</section><section className="side-panel"><h3>ADD / DEDUCT VIRTUAL CREDITS</h3>{target?<><div className="selected-admin"><span>{target.phone}</span><strong>{money(target.credits)}</strong></div><input type="number" value={amount} onChange={e=>setAmount(Math.max(1,+e.target.value||1))}/><div className="adjust-buttons"><button disabled={busy} onClick={()=>adjust(amount)}>+ ADD CREDITS</button><button disabled={busy} onClick={()=>adjust(-amount)}>− DEDUCT</button></div></>:<p>Search for a player.</p>}</section></div></main></div>
 }
