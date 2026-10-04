@@ -52,6 +52,15 @@ function Auth({mode,setMode,setLocal,local,setProfile,loading,setLoading}:{mode:
  return <div className="auth-page"><div className="auth-card"><div className="auth-logo"><span>◆</span> KENOPLAY</div>{mode!=='admin'?<><div className="auth-tabs"><button className={mode==='login'?'on':''} onClick={()=>setMode('login')}>LOGIN</button><button className={mode==='register'?'on':''} onClick={()=>setMode('register')}>REGISTER</button></div><h1>{mode==='register'?'Create your account':'Welcome back'}</h1><p>Phone number and password. Virtual credits only.</p><label>Phone number<input inputMode="tel" placeholder="+251911234567" value={phone} onChange={e=>setPhone(e.target.value)}/></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)}/></label></>:<><h1>Admin sign in</h1><p>Only approved admin accounts can access the control center.</p><label>Email<input value={email} onChange={e=>setEmail(e.target.value)}/></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)}/></label></>}{error&&<div className="error">{error}</div>}<button className="primary" disabled={loading} onClick={submit}>{loading?'PLEASE WAIT…':mode==='admin'?'ADMIN LOGIN':mode==='register'?'CREATE ACCOUNT':'LOGIN'}</button>{mode==='admin'?<button className="link" onClick={()=>setMode('login')}>Back to player login</button>:<button className="link" onClick={()=>setMode('admin')}>Admin sign in</button>} {!supabaseConfigured&&<small className="demo">Demo mode is active. Add Supabase keys to enable shared accounts.</small>}</div></div>
 }
 
+function flyIn(el:HTMLSpanElement|null){
+ if(!el||el.dataset.fly)return
+ el.dataset.fly='1'
+ const box=el.closest('.keno-result-box');if(!box)return
+ const b=box.getBoundingClientRect(),r=el.getBoundingClientRect()
+ el.style.setProperty('--dx',`${b.left+b.width/2-(r.left+r.width/2)}px`)
+ el.style.setProperty('--dy',`${b.top+b.height/2-(r.top+r.height/2)}px`)
+ el.classList.add('fly')
+}
 function Keno({player,debit,settle,message,setMessage}:{player:Player;debit:(n:number)=>Promise<boolean>;settle:(s:number,p:number,l:string,g:GameId,m?:Record<string,unknown>)=>Promise<void>;message:string;setMessage:(s:string)=>void}){
  const [picks,setPicks]=useState<number[]>([]),[sessions,setSessions]=useState<{id:number;numbers:number[];stake:number;accepted:boolean}[]>([]),[drawn,setDrawn]=useState<number[]>([]),[current,setCurrent]=useState<number|null>(null),[bet,setBet]=useState(2),[left,setLeft]=useState(60),[drawing,setDrawing]=useState(false),[last,setLast]=useState<number[]>([]),[tab,setTab]=useState('game'),[round,setRound]=useState(0),[settled,setSettled]=useState(false)
  const otherTickets=useMemo(()=>Array.from({length:8},(_,i)=>({id:`ticket-${round}-${i}`,name:['y**e','m**n','a**r','h**d','s**a','d**l','k**m','t**r'][i],stake:[20,50,100,200,500,30,80,150][i],numbers:shuffle(nums()).slice(0,1+rnd(10)).sort((a,b)=>a-b)})),[round])
@@ -75,7 +84,7 @@ function Keno({player,debit,settle,message,setMessage}:{player:Player;debit:(n:n
    setDrawing(true);setDrawn([]);setLast([]);setCurrent(null)
    const pool=shuffle(nums()).slice(0,20)
    for(let i=0;i<pool.length;i++){
-     setCurrent(pool[i]);await new Promise(r=>setTimeout(r,1000));setDrawn(d=>[...d,pool[i]]);setLast(d=>[...d,pool[i]]);setCurrent(null)
+     setDrawn(d=>[...d,pool[i]]);setLast(d=>[...d,pool[i]]);setCurrent(pool[i]);await new Promise(r=>setTimeout(r,1600))
    }
    const multiplierByCount:Record<number,number[]>={1:[0,2],2:[0,1,5],3:[0,0,2,12],4:[0,0,1,5,25],5:[0,0,0,2,10,50],6:[0,0,0,1,5,25,100],7:[0,0,0,1,3,12,60,250],8:[0,0,0,1,3,10,40,180,500],9:[0,0,0,0,2,7,25,100,350,1000],10:[0,0,0,1,2,5,12,30,80,200,500]}
    let totalStake=0,totalPayout=0,winCount=0
@@ -94,9 +103,9 @@ function Keno({player,debit,settle,message,setMessage}:{player:Player;debit:(n:n
      <div className="keno-head"><div className="mini-balance"><b>{money(player.credits)}</b><span>ID: {maskPhone(player.phone)||'PLAYER'}</span></div><div className="timer">{countdown}</div><div className="menu">☰</div></div>
      <div className="keno-result-box">
        <div className="result-title-row"><strong>{drawing?'LIVE DRAW':settled?'DRAW COMPLETE':'NEXT DRAW'}</strong><span>{drawing?`${drawn.length} / 20`:'20 NUMBERS'}</span></div>
-       {drawing || settled || last.length>0 ? <div className="draw-result-grid">{displayResults.map((n,i)=><span className={`draw-number ${allMyNumbers.includes(n)?'my-hit':''}`} key={`${n}-${i}`}>{n}</span>)}{drawing&&Array.from({length:Math.max(0,20-drawn.length)}).map((_,i)=><span className="draw-number empty" key={`empty-${i}`}>—</span>)}</div> : <div className="next-draw-message"><div className="count-large">{countdown}</div><div>Choose 1 to 10 numbers per session · up to 20 sessions</div></div>}
+       {drawing || settled || last.length>0 ? <div className="draw-result-grid">{displayResults.map((n,i)=><span ref={flyIn} className={`draw-number ${allMyNumbers.includes(n)?'my-hit':''}`} key={`${n}-${i}`}>{n}</span>)}{drawing&&Array.from({length:Math.max(0,20-drawn.length)}).map((_,i)=><span className="draw-number empty" key={`empty-${i}`}>—</span>)}</div> : <div className="next-draw-message"><div className="count-large">{countdown}</div><div>Choose 1 to 10 numbers per session · up to 20 sessions</div></div>}
      </div>
-     {drawing&&current!==null&&<div className="draw-stage" aria-live="polite"><div className="draw-stage-ring"><span>{current}</span></div><div className="draw-stage-label">DRAWING NUMBER {drawn.length+1} OF 20</div></div>}
+     {drawing&&<div className="draw-stage-label draw-label-only" aria-live="polite">DRAWING NUMBER {Math.min(drawn.length+1,20)} OF 20</div>}
      {showBoard&&<>
        <div className="keno-grid">{nums().map(n=><button key={n} className={picks.includes(n)?'pick':''} onClick={()=>toggle(n)}><b>{n}</b></button>)}</div>
        <div className="betbar"><button onClick={()=>setBet(v=>Math.max(1,v-1))}>−</button><strong>{bet}</strong><button onClick={()=>setBet(v=>Math.min(Math.max(1,player.credits),v+1))}>+</button><button className="x2" onClick={()=>setBet(v=>Math.min(Math.max(1,player.credits),v*2))}>X2</button><button className="max" onClick={()=>setBet(Math.max(1,Math.floor(player.credits/10)))}>MAX</button><button className="bet-btn" disabled={picks.length<1||sessions.length>=20} onClick={placeBet}>{sessions.length>=20?'20/20':'BET'}</button></div>
