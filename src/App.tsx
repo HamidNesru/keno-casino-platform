@@ -53,54 +53,63 @@ function Auth({mode,setMode,setLocal,local,setProfile,loading,setLoading}:{mode:
 }
 
 function Keno({player,debit,settle,message,setMessage}:{player:Player;debit:(n:number)=>Promise<boolean>;settle:(s:number,p:number,l:string,g:GameId,m?:Record<string,unknown>)=>Promise<void>;message:string;setMessage:(s:string)=>void}){
- const [picks,setPicks]=useState<number[]>([]),[drawn,setDrawn]=useState<number[]>([]),[current,setCurrent]=useState<number|null>(null),[bet,setBet]=useState(2),[left,setLeft]=useState(60),[drawing,setDrawing]=useState(false),[last,setLast]=useState<number[]>([]),[tab,setTab]=useState('game'),[round,setRound]=useState(0),[accepted,setAccepted]=useState(false)
- const otherTickets=useMemo(()=>Array.from({length:5},(_,i)=>({id:`ticket-${round}-${i}`,name:['y**e','m**n','a**r','h**d','s**a'][i],stake:[20,50,100,200,500][i],numbers:shuffle(nums()).slice(0,1+rnd(10)).sort((a,b)=>a-b)})),[round])
+ const [picks,setPicks]=useState<number[]>([]),[sessions,setSessions]=useState<{id:number;numbers:number[];stake:number;accepted:boolean}[]>([]),[drawn,setDrawn]=useState<number[]>([]),[current,setCurrent]=useState<number|null>(null),[bet,setBet]=useState(2),[left,setLeft]=useState(60),[drawing,setDrawing]=useState(false),[last,setLast]=useState<number[]>([]),[tab,setTab]=useState('game'),[round,setRound]=useState(0)
+ const otherTickets=useMemo(()=>Array.from({length:8},(_,i)=>({id:`ticket-${round}-${i}`,name:['y**e','m**n','a**r','h**d','s**a','d**l','k**m','t**r'][i],stake:[20,50,100,200,500,30,80,150][i],numbers:shuffle(nums()).slice(0,1+rnd(10)).sort((a,b)=>a-b)})),[round])
  const playerCount=128+((round*7)%24)
  useEffect(()=>{if(drawing)return;const t=setInterval(()=>setLeft(v=>v<=1?0:v-1),1000);return()=>clearInterval(t)},[drawing])
  useEffect(()=>{if(left!==0||drawing)return;startDraw()},[left])
- function toggle(n:number){if(drawing||accepted)return;setPicks(p=>p.includes(n)?p.filter(x=>x!==n):p.length<10?[...p,n]:p)}
- function quick(){if(!drawing&&!accepted)setPicks(shuffle(nums()).slice(0,Math.min(10,Math.max(1,1+rnd(10)))).sort((a,b)=>a-b))}
- async function placeBet(){if(picks.length<1||picks.length>10){setMessage('Choose 1 to 10 numbers.');return}if(await debit(bet)){setAccepted(true);setMessage(`BET ACCEPTED · ${picks.length} NUMBERS · WAIT FOR THE DRAW`)}}
+ function toggle(n:number){if(drawing)return;setPicks(p=>p.includes(n)?p.filter(x=>x!==n):p.length<10?[...p,n]:p)}
+ function quick(){if(!drawing)setPicks(shuffle(nums()).slice(0,Math.min(10,Math.max(1,1+rnd(10)))).sort((a,b)=>a-b))}
+ async function placeBet(){
+   if(picks.length<1||picks.length>10){setMessage('Choose 1 to 10 numbers for this session.');return}
+   if(sessions.length>=20){setMessage('Maximum 20 Keno sessions reached.');return}
+   if(bet<1||bet>player.credits){setMessage('Not enough virtual credits.');return}
+   if(await debit(bet)){
+     const id=Date.now()+sessions.length
+     setSessions(v=>[...v,{id,numbers:[...picks].sort((a,b)=>a-b),stake:bet,accepted:true}])
+     setPicks([])
+     setMessage(`SESSION ${sessions.length+1} ACCEPTED · ${picks.length} NUMBERS · ${money(bet)}`)
+   }
+ }
  async function startDraw(){
-   setDrawing(true);setAccepted(false);setDrawn([]);setLast([]);setCurrent(null)
+   setDrawing(true);setDrawn([]);setLast([]);setCurrent(null)
    const pool=shuffle(nums()).slice(0,20)
    for(let i=0;i<pool.length;i++){
-     setCurrent(pool[i])
-     await new Promise(r=>setTimeout(r,1000))
-     setDrawn(d=>[...d,pool[i]])
-     setLast(d=>[...d,pool[i]])
-     setCurrent(null)
+     setCurrent(pool[i]);await new Promise(r=>setTimeout(r,1000));setDrawn(d=>[...d,pool[i]]);setLast(d=>[...d,pool[i]]);setCurrent(null)
    }
-   const hits=picks.filter(n=>pool.includes(n)).length,count=picks.length
    const multiplierByCount:Record<number,number[]>={1:[0,2],2:[0,1,5],3:[0,0,2,12],4:[0,0,1,5,25],5:[0,0,0,2,10,50],6:[0,0,0,1,5,25,100],7:[0,0,0,1,3,12,60,250],8:[0,0,0,1,3,10,40,180,500],9:[0,0,0,0,2,7,25,100,350,1000],10:[0,0,0,1,2,5,12,30,80,200,500]}
-   const payout=accepted?Math.floor(bet*(multiplierByCount[count]?.[hits]||0)):0
-   if(payout)await settle(bet,payout,`Keno ${hits}/${count}`,'keno',{draw:pool,hits,picks})
-   setMessage(payout?`WIN ${money(payout)} · ${hits}/${count} MATCHES`:`${hits}/${count} MATCHES`)
-   setRound(x=>x+1);setLeft(60);setDrawing(false);setCurrent(null)
+   let totalStake=0,totalPayout=0,winCount=0
+   for(const ticket of sessions){const hits=ticket.numbers.filter(n=>pool.includes(n)).length;const count=ticket.numbers.length;const payout=Math.floor(ticket.stake*(multiplierByCount[count]?.[hits]||0));totalStake+=ticket.stake;if(payout){totalPayout+=payout;winCount++;await settle(ticket.stake,payout,`Keno ${hits}/${count}`,'keno',{draw:pool,hits,picks:ticket.numbers,sessionId:ticket.id})}}
+   setMessage(totalPayout?`WIN ${money(totalPayout)} · ${winCount} SESSION${winCount===1?'':'S'} WON`:`DRAW COMPLETE · ${sessions.length} SESSION${sessions.length===1?'':'S'} PLAYED`)
+   setRound(x=>x+1);setSessions([]);setPicks([]);setLeft(60);setDrawing(false);setCurrent(null)
  }
  const countdown=`${String(Math.floor(left/60)).padStart(2,'0')}:${String(left%60).padStart(2,'0')}`
  const displayResults=drawing?drawn:last
+ const allMyNumbers=sessions.flatMap(s=>s.numbers)
  return <div className="keno-wrap">
    <section className="keno-main">
      <div className="keno-head"><div className="mini-balance"><b>{money(player.credits)}</b><span>ID: {maskPhone(player.phone)||'PLAYER'}</span></div><div className="timer">{countdown}</div><div className="menu">☰</div></div>
      <div className="keno-result-box">
        <div className="result-title-row"><strong>{drawing?'LIVE DRAW':'NEXT DRAW'}</strong><span>{drawing?`${drawn.length} / 20`:'20 NUMBERS'}</span></div>
-       {drawing || last.length>0 ? <div className="draw-result-grid">{displayResults.map((n,i)=><span className={`draw-number ${otherTickets?.some(t => t.numbers?.includes(n)) ? "other-hit" : ""}`} key={`${n}-${i}`}>{n}</span>)}{drawing&&Array.from({length:Math.max(0,20-drawn.length)}).map((_,i)=><span className="draw-number empty" key={`empty-${i}`}>—</span>)}</div> : <div className="next-draw-message"><div className="count-large">{countdown}</div><div>Choose 1 to 10 numbers from 1 to 80</div></div>}
+       {drawing || last.length>0 ? <div className="draw-result-grid">{displayResults.map((n,i)=><span className={`draw-number ${otherTickets?.some(t => t.numbers?.includes(n)) ? "other-hit" : ""}`} key={`${n}-${i}`}>{n}</span>)}{drawing&&Array.from({length:Math.max(0,20-drawn.length)}).map((_,i)=><span className="draw-number empty" key={`empty-${i}`}>—</span>)}</div> : <div className="next-draw-message"><div className="count-large">{countdown}</div><div>Choose 1 to 10 numbers per session · up to 20 sessions</div></div>}
      </div>
      {drawing&&current!==null&&<div className="draw-stage" aria-live="polite"><div className="draw-stage-ring"><span>{current}</span></div><div className="draw-stage-label">DRAWING NUMBER {drawn.length+1} OF 20</div></div>}
      {!drawing&&<>
        <div className="keno-grid">{nums().map(n=><button key={n} className={picks.includes(n)?'pick':''} onClick={()=>toggle(n)}><b>{n}</b></button>)}</div>
+       <div className="betbar"><button onClick={()=>setBet(v=>Math.max(1,v-1))}>−</button><strong>{bet}</strong><button onClick={()=>setBet(v=>Math.min(Math.max(1,player.credits),v+1))}>+</button><button className="x2" onClick={()=>setBet(v=>Math.min(Math.max(1,player.credits),v*2))}>X2</button><button className="max" onClick={()=>setBet(Math.max(1,Math.floor(player.credits/10)))}>MAX</button><button className="bet-btn" disabled={picks.length<1||sessions.length>=20} onClick={placeBet}>{sessions.length>=20?'20/20':'BET'}</button></div>
+       <div className="quick-row"><button onClick={quick}>QUICK PICK</button><span>{message}</span><button onClick={()=>{setPicks([]);setMessage('')}}>CLEAR</button></div>
      </>}
      <div className="ticket-section">
-       <div className="section-heading"><strong>YOUR SELECTED NUMBERS</strong><span>{picks.length}/10</span></div>
-       <div className="ticket-box own-ticket">{picks.length? <div className="ticket-numbers">{picks.slice().sort((a,b)=>a-b).map(n=><span key={n} className={drawn.includes(n)?'hit':''}>{n}</span>)}</div>:<div className="empty-ticket">Select 1 to 10 numbers for your ticket</div>}</div>
+       <div className="section-heading"><strong>YOUR SELECTED SESSIONS</strong><span>{sessions.length}/20</span></div>
+       {sessions.length===0&&!picks.length?<div className="ticket-box own-ticket"><div className="empty-ticket">Select 1 to 10 numbers, set your BET, then press BET. You can create up to 20 different sessions.</div></div>:null}
+       {picks.length>0&&!drawing&&<div className="ticket-box own-ticket draft-ticket"><div className="ticket-meta"><span>SESSION {sessions.length+1} · READY</span><b>{money(bet)}</b></div><div className="ticket-numbers">{picks.slice().sort((a,b)=>a-b).map(n=><span key={n}>{n}</span>)}</div></div>}
+       {sessions.map((ticket,i)=><div className="ticket-box own-ticket" key={ticket.id}><div className="ticket-meta"><span>SESSION {i+1} · {ticket.numbers.length} NUMBERS</span><b>{money(ticket.stake)}</b></div><div className="ticket-numbers">{ticket.numbers.map(n=><span key={n} className={drawn.includes(n)?'hit':''}>{n}</span>)}</div></div>)}
        <div className="section-heading other-heading"><strong>OTHER PLAYERS · NUMBERS & STAKE</strong><span>{playerCount} PLAYERS LIVE</span></div>
        <div className="other-tickets">{otherTickets.map(ticket=><div className="ticket-box other-ticket" key={ticket.id}><div className="ticket-meta"><span>{ticket.name}</span><b>{money(ticket.stake)}</b></div><div className="ticket-numbers">{ticket.numbers.map(n=><span key={n}>{n}</span>)}</div></div>)}</div>
      </div>
-     {!drawing&&<><div className="betbar"><button onClick={()=>setBet(v=>Math.max(1,v-1))}>−</button><strong>{bet}</strong><button onClick={()=>setBet(v=>v+1)}>+</button><button className="x2" onClick={()=>setBet(v=>Math.min(Math.max(1,player.credits),v*2))}>X2</button><button className="max" onClick={()=>setBet(Math.max(1,Math.floor(player.credits/10)))}>MAX</button><button className="bet-btn" disabled={picks.length<1||accepted} onClick={placeBet}>{accepted?'WAIT…':'BET'}</button></div><div className="quick-row"><button onClick={quick} disabled={accepted}>QUICK PICK</button><span>{message}</span><button onClick={()=>{setPicks([]);setAccepted(false);setMessage('')}}>CLEAR</button></div></>}
      <div className="bottom-tabs">{['game','history','results','statistics'].map(x=><button className={tab===x?'on':''} onClick={()=>setTab(x)} key={x}>{x==='game'?'▶ GAME':x==='history'?'↶ HISTORY':x==='results'?'✓ RESULTS':'▥ STATISTICS'}</button>)}</div>
    </section>
-   <aside className="keno-side"><Panel title="OTHER PLAYERS' SELECTIONS"><div className="popular">{[4,16,27,55,72,8].map(n=><div key={n}><span>{String(n).padStart(2,'0')}</span><i style={{width:`${Math.min(100,(2+rnd(15))*5)}%`}}/><small>{2+rnd(15)} picks</small></div>)}</div></Panel><Panel title="LATEST RESULTS"><div className="result-pills">{last.map((n,i)=><span key={`${n}-${i}`}>{n}</span>)}</div></Panel><Panel title="MY TICKET"><div className="result-pills">{picks.map(n=><span key={n}>{n}</span>)}</div></Panel></aside>
+   <aside className="keno-side"><Panel title="OTHER PLAYERS' SELECTIONS"><div className="popular">{[4,16,27,55,72,8].map(n=><div key={n}><span>{String(n).padStart(2,'0')}</span><i style={{width:`${Math.min(100,(2+rnd(15))*5)}%`}}/><small>{2+rnd(15)} picks</small></div>)}</div></Panel><Panel title="LATEST RESULTS"><div className="result-pills">{last.map((n,i)=><span key={`${n}-${i}`}>{n}</span>)}</div></Panel><Panel title="MY TICKETS"><div className="result-pills">{allMyNumbers.map((n,i)=><span key={`${n}-${i}`}>{n}</span>)}</div></Panel></aside>
  </div>
 }
 function Panel({title,children}:{title:string;children:ReactNode}){return <div className="side-panel"><h3>{title}</h3>{children}</div>}
