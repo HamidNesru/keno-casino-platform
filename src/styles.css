@@ -677,3 +677,32 @@ body{font-family:Arial,Helvetica,sans-serif;background:#090e0d}
     }
   }
 }
+
+
+/* ===== RESULT BOX: silver-white by default, steady green only for numbers the player picked ===== */
+.keno-wrap .draw-number{
+  border:2px solid #dfe5e8 !important;
+  background:radial-gradient(circle at 34% 28%,#ffffff 0%,#eef1f3 35%,#c3cbd0 100%) !important;
+  color:#1c262b !important;
+  text-shadow:none !important;
+  box-shadow:inset 0 3px 6px rgba(255,255,255,.7),0 1px 3px rgba(0,0,0,.35) !important;
+  animation:settledKenoBall .36s cubic-bezier(.22,.8,.32,1) both !important;
+}
+.keno-wrap .draw-number.empty{
+  background:radial-gradient(circle,#1c2925 0%,#151e1b 70%) !important;
+  border:1px solid #30433b !important;color:#4d6058 !important;box-shadow:none !important;animation:none !important;
+}
+.keno-wrap .draw-number.my-hit{
+  border-color:#a9ffd4 !important;
+  background:radial-gradient(circle at 35% 27%,#d1ffe6 0%,#74f5b2 20%,#25c879 52%,#0b5837 100%) !important;
+  color:#03170e !important;
+  box-shadow:0 0 8px rgba(129,255,194,.8),0 0 18px rgba(53,230,137,.55),inset 0 3px 8px rgba(255,255,255,.4) !important;
+}
+/* Ticket rows (yours and other players): hit numbers glow green but never blink */
+.keno-wrap .ticket-box .ticket-numbers span.hit,
+.keno-wrap .other-ticket .ticket-numbers span.hit{
+  background:radial-gradient(circle at 50% 38%,#baffdc 0%,#59efa5 24%,#20b86d 55%,#0e633e 100%) !important;
+  border-color:#9dffd0 !important;color:#03150c !important;
+  box-shadow:0 0 8px rgba(104,255,176,.8),0 0 16px rgba(53,230,137,.5) !important;
+  animation:none !important;filter:none !important;transform:none !important;
+}
