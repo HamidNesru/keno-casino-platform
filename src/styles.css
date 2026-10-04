@@ -359,3 +359,92 @@ body{font-family:Arial,Helvetica,sans-serif;background:#090e0d}
   .wallet strong{padding:7px 8px;font-size:10px}
   .logout{width:34px;height:34px;font-size:21px}
 }
+
+/* ANAS BET — premium Keno presentation */
+.keno-main{background:linear-gradient(180deg,#0b1211 0%,#0a100f 100%);border-color:#182822;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+.keno-result-box{border:2px solid #35dc8c!important;background:linear-gradient(180deg,#1b2928,#121d1b)!important;box-shadow:0 0 18px rgba(53,220,140,.13),inset 0 0 30px rgba(53,220,140,.06)!important}
+.draw-result-grid{grid-template-columns:repeat(10,minmax(0,1fr));gap:5px}
+.draw-number{border:1px solid #36d889!important;background:linear-gradient(180deg,#287c59,#123e2e)!important;color:#eafff4!important;font-weight:900!important;border-radius:4px!important;box-shadow:0 0 8px rgba(53,220,140,.12)!important}
+.draw-number.empty{border-color:#273a34!important;background:#18231f!important;color:#4e635b!important;box-shadow:none!important}
+.keno-grid{gap:4px!important}
+.keno-grid button{height:58px!important;border:1px solid #334540!important;background:linear-gradient(180deg,#293837,#1b2927)!important;color:#eef4f1!important;font-size:20px!important;font-weight:800!important;border-radius:5px!important}
+.keno-grid button.pick{background:linear-gradient(180deg,#43d998,#207651)!important;border:2px solid #70efb1!important;color:#fff!important;box-shadow:0 0 14px rgba(55,220,140,.25)!important}
+.ticket-box{border:1px solid #2e5d49!important;background:linear-gradient(180deg,#17241f,#111a17)!important;box-shadow:inset 0 0 20px rgba(53,220,140,.035)}
+.ticket-numbers span{border:1px solid #3b9b72!important;background:linear-gradient(180deg,#294a3c,#172b23)!important;color:#eafff4!important;font-weight:900!important}
+.ticket-numbers span.hit{background:linear-gradient(180deg,#6bf0aa,#23925e)!important;border-color:#9affc7!important;box-shadow:0 0 14px rgba(73,238,160,.5)!important;color:#06150e!important;transform:scale(1.04)}
+.other-ticket{border-color:#275c45!important}
+.ticket-meta span{color:#65e8a5!important;font-weight:900!important;letter-spacing:.4px}
+.ticket-meta b{color:#f3d75b!important;font-weight:900!important}
+.section-heading strong{color:#58e39d!important;font-weight:900!important;letter-spacing:.9px}
+.header-players{display:flex;align-items:center;gap:5px;color:#91a39d;font-size:10px;letter-spacing:.5px}.header-players strong{color:#58e39d;font-size:13px}.live-dot{width:7px;height:7px;border-radius:50%;background:#45e69a;box-shadow:0 0 8px #45e69a}
+.draw-stage{height:240px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;background:radial-gradient(circle at 50% 45%,rgba(44,170,112,.16),transparent 45%);border-bottom:1px solid #193028}
+.draw-stage-ring{width:112px;height:112px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 28%,#8affc5,#35c986 42%,#126442 72%,#09281d);border:5px solid #6bf0ae;box-shadow:0 0 0 7px rgba(70,229,158,.08),0 0 35px rgba(70,229,158,.35),inset 0 5px 15px rgba(255,255,255,.22);animation:kenoBallFront .8s cubic-bezier(.18,.89,.32,1.28) both}
+.draw-stage-ring span{font-size:48px;font-weight:950;color:#fff;text-shadow:0 2px 5px rgba(0,0,0,.4)}
+.draw-stage-label{margin-top:15px;color:#65e7a5;font-size:11px;font-weight:900;letter-spacing:1.2px;animation:fadeUp .5s ease both}
+@keyframes kenoBallFront{0%{transform:translateY(100px) scale(.35);opacity:0}55%{transform:translateY(-10px) scale(1.18);opacity:1}100%{transform:translateY(0) scale(1);opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:720px){.keno-grid{grid-template-columns:repeat(10,minmax(0,1fr));gap:3px!important}.keno-grid button{height:50px!important;font-size:18px!important}.draw-stage{height:205px}.draw-stage-ring{width:96px;height:96px}.draw-stage-ring span{font-size:40px}.draw-result-grid{gap:3px}.draw-number{min-height:29px;font-size:13px}}
+
+
+/* KENO HIT LIGHTS — selected tickets and other players */
+.ticket-numbers span.hit,
+.ticket-box .ticket-numbers span.hit {
+  background:
+    radial-gradient(circle at 50% 38%, #baffdc 0%, #59efa5 24%, #20b86d 55%, #0e633e 100%) !important;
+  border-color: #9dffd0 !important;
+  color: #03150c !important;
+  box-shadow:
+    0 0 5px rgba(104,255,176,.95),
+    0 0 14px rgba(53,230,137,.85),
+    0 0 28px rgba(53,230,137,.45),
+    inset 0 2px 7px rgba(255,255,255,.45) !important;
+  text-shadow: none !important;
+  transform: scale(1.06);
+  animation: kenoHitGlow .75s ease-in-out infinite alternate;
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes kenoHitGlow {
+  from {
+    filter: brightness(1);
+    box-shadow:
+      0 0 5px rgba(104,255,176,.8),
+      0 0 12px rgba(53,230,137,.65),
+      0 0 22px rgba(53,230,137,.35),
+      inset 0 2px 6px rgba(255,255,255,.35);
+  }
+  to {
+    filter: brightness(1.35);
+    box-shadow:
+      0 0 8px rgba(150,255,198,1),
+      0 0 20px rgba(53,230,137,.95),
+      0 0 38px rgba(53,230,137,.65),
+      inset 0 2px 8px rgba(255,255,255,.55);
+  }
+}
+
+/* Other players: only their result-box numbers light up.
+   Their ticket numbers stay normal. */
+.other-ticket .ticket-numbers span.hit {
+  background: inherit !important;
+  border-color: inherit !important;
+  color: inherit !important;
+  box-shadow: none !important;
+  animation: none !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+/* Green indicator for a matching number in the result box */
+.draw-number.other-hit {
+  background:
+    radial-gradient(circle at 50% 35%, #c5ffe0 0%, #61f0a9 23%, #1fc06f 56%, #0c5b39 100%) !important;
+  border-color: #a5ffd2 !important;
+  color: #03150c !important;
+  box-shadow:
+    0 0 6px rgba(112,255,184,.95),
+    0 0 16px rgba(53,230,137,.8),
+    inset 0 2px 7px rgba(255,255,255,.42) !important;
+  animation: kenoHitGlow .75s ease-in-out infinite alternate;
+}
