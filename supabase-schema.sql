@@ -1,10 +1,13 @@
 -- Run this once in Supabase SQL Editor.
+-- If you ran an older version of this file, run these two lines first:
+--   alter table public.profiles alter column credits set default 0;
+--   drop policy if exists profiles_update_self on public.profiles;
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   phone text unique,
   display_name text,
   role text not null default 'player' check (role in ('player','admin')),
-  credits bigint not null default 10000 check (credits >= 0),
+  credits bigint not null default 0 check (credits >= 0),
   created_at timestamptz not null default now()
 );
 
@@ -50,14 +53,16 @@ end; $$;
 
 drop policy if exists profiles_self on public.profiles;
 create policy profiles_self on public.profiles for select using (id = auth.uid() or public.is_admin(auth.uid()));
+-- Players must NOT be able to update their own profile row (that would let them edit credits or role).
 drop policy if exists profiles_update_self on public.profiles;
-create policy profiles_update_self on public.profiles for update using (id = auth.uid()) with check (id = auth.uid());
 drop policy if exists admin_profiles_all on public.profiles;
 create policy admin_profiles_all on public.profiles for all using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
 
 drop policy if exists own_rounds on public.game_rounds;
 create policy own_rounds on public.game_rounds for select using (player_id = auth.uid() or public.is_admin(auth.uid()));
+drop policy if exists own_round_insert on public.game_rounds;
 create policy own_round_insert on public.game_rounds for insert with check (player_id = auth.uid());
+drop policy if exists admin_rounds on public.game_rounds;
 create policy admin_rounds on public.game_rounds for all using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
 
 drop policy if exists own_transactions on public.credit_transactions;
@@ -67,7 +72,8 @@ create policy admin_transactions on public.credit_transactions for all using (pu
 create or replace function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public
 as $$ begin
-  insert into public.profiles(id, phone, display_name) values(new.id, new.phone, coalesce(new.raw_user_meta_data->>'display_name', 'Player')) on conflict (id) do nothing;
+  insert into public.profiles(id, phone, display_name, credits)
+  values(new.id, new.raw_user_meta_data->>'phone', coalesce(new.raw_user_meta_data->>'display_name', 'Player'), 0) on conflict (id) do nothing;
   return new;
 end; $$;
 
@@ -92,3 +98,10 @@ begin
   if new_balance is null then raise exception 'Player profile not found'; end if;
   return new_balance;
 end; $$;
+
+
+-- ===== Make yourself admin =====
+-- 1) Supabase Dashboard > Authentication > Users > Add user (your admin email + password, tick "Auto Confirm").
+-- 2) Then run (use your admin email):
+--    update public.profiles set role = 'admin' where id = (select id from auth.users where email = 'YOUR_ADMIN_EMAIL');
+-- 3) Authentication > Providers > Email: turn OFF "Confirm email" so players can log in right after registering.
