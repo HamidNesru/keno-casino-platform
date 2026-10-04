@@ -448,3 +448,232 @@ body{font-family:Arial,Helvetica,sans-serif;background:#090e0d}
     inset 0 2px 7px rgba(255,255,255,.42) !important;
   animation: kenoHitGlow .75s ease-in-out infinite alternate;
 }
+
+
+/* MULTI-SESSION KENO */
+.betbar{margin-top:10px!important;margin-bottom:6px!important;order:initial}
+.draft-ticket{border-style:dashed!important;border-color:#59e9a0!important}
+.ticket-section .ticket-box{margin-bottom:8px}
+.ticket-section .ticket-meta{display:flex;justify-content:space-between;align-items:center}
+@media(max-width:720px){.betbar{position:relative;margin-top:8px!important}.ticket-section{margin-top:10px}.draft-ticket{box-shadow:0 0 12px rgba(53,220,140,.12)}}
+
+
+/* =========================================================
+   PREMIUM KENO RESULT PRESENTATION
+   - Result numbers are circular
+   - Current ball appears large and bold
+   - Ball flies back upward toward its result position
+   ========================================================= */
+
+.keno-result-box {
+  position: relative !important;
+  overflow: visible !important;
+}
+
+.draw-result-grid {
+  grid-template-columns: repeat(10, minmax(0, 1fr)) !important;
+  align-items: center !important;
+  justify-items: center !important;
+  gap: 7px !important;
+  padding: 5px 2px 7px !important;
+}
+
+.draw-number {
+  width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  aspect-ratio: 1 / 1 !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 50% !important;
+  border: 2px solid #45e79a !important;
+  background:
+    radial-gradient(circle at 34% 28%, #b8ffdc 0%, #58eaa0 22%, #239765 57%, #0c422c 100%) !important;
+  color: #f3fff9 !important;
+  font-size: 15px !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  box-shadow:
+    0 0 7px rgba(61, 235, 148, .38),
+    0 0 14px rgba(61, 235, 148, .20),
+    inset 0 3px 7px rgba(255,255,255,.22) !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,.65) !important;
+  animation: settledKenoBall .36s cubic-bezier(.22,.8,.32,1) both;
+}
+
+.draw-number.empty {
+  background: radial-gradient(circle, #1c2925 0%, #151e1b 70%) !important;
+  border: 1px solid #30433b !important;
+  color: #4d6058 !important;
+  box-shadow: none !important;
+  animation: none !important;
+}
+
+.draw-number.other-hit {
+  border-color: #a9ffd4 !important;
+  background:
+    radial-gradient(circle at 35% 27%, #d1ffe6 0%, #74f5b2 20%, #25c879 52%, #0b5837 100%) !important;
+  color: #03170e !important;
+  box-shadow:
+    0 0 7px rgba(129,255,194,.95),
+    0 0 18px rgba(53,230,137,.90),
+    0 0 30px rgba(53,230,137,.52),
+    inset 0 3px 8px rgba(255,255,255,.45) !important;
+  animation: resultHitBulb .75s ease-in-out infinite alternate !important;
+}
+
+@keyframes settledKenoBall {
+  0% {
+    transform: scale(.45) translateY(-10px);
+    opacity: .15;
+  }
+  70% {
+    transform: scale(1.12) translateY(2px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes resultHitBulb {
+  from {
+    filter: brightness(1);
+    transform: scale(1);
+  }
+  to {
+    filter: brightness(1.4);
+    transform: scale(1.08);
+  }
+}
+
+/* The large live ball starts below the result panel and physically
+   travels upward toward the result box before the number settles. */
+.draw-stage {
+  height: 205px !important;
+  margin-top: -2px !important;
+  position: relative !important;
+  overflow: visible !important;
+  z-index: 5 !important;
+  pointer-events: none !important;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(45,220,139,.18), transparent 43%) !important;
+}
+
+.draw-stage-ring {
+  width: 118px !important;
+  height: 118px !important;
+  border-radius: 50% !important;
+  display: grid !important;
+  place-items: center !important;
+  position: relative !important;
+  z-index: 20 !important;
+  background:
+    radial-gradient(circle at 32% 25%, #d1ffe7 0%, #74f3b0 18%, #31c77f 43%, #12623f 70%, #06281a 100%) !important;
+  border: 5px solid #8affc1 !important;
+  box-shadow:
+    0 0 0 8px rgba(78,238,160,.08),
+    0 0 28px rgba(70,238,160,.50),
+    0 0 65px rgba(70,238,160,.22),
+    inset 0 7px 18px rgba(255,255,255,.28) !important;
+  animation: kenoBallFlyToResult 1s cubic-bezier(.2,.82,.28,1) both !important;
+}
+
+.draw-stage-ring span {
+  font-size: 52px !important;
+  font-weight: 1000 !important;
+  color: #ffffff !important;
+  line-height: 1 !important;
+  text-shadow:
+    0 2px 4px rgba(0,0,0,.55),
+    0 0 12px rgba(255,255,255,.28) !important;
+}
+
+@keyframes kenoBallFlyToResult {
+  0% {
+    transform: translateY(85px) scale(.38);
+    opacity: 0;
+  }
+  18% {
+    transform: translateY(15px) scale(1.10);
+    opacity: 1;
+  }
+  40% {
+    transform: translateY(-12px) scale(1);
+  }
+  72% {
+    transform: translateY(-92px) scale(.72);
+  }
+  100% {
+    transform: translateY(-142px) scale(.38);
+    opacity: .10;
+  }
+}
+
+.draw-stage-label {
+  margin-top: 6px !important;
+  position: relative !important;
+  z-index: 21 !important;
+  color: #71efad !important;
+  font-weight: 950 !important;
+  letter-spacing: 1.3px !important;
+  animation: fadeUp .35s ease both !important;
+}
+
+/* Make the result title strong and professional */
+.result-title-row strong {
+  font-weight: 1000 !important;
+  letter-spacing: .8px !important;
+}
+
+/* Mobile: keep all 20 circular results compact */
+@media (max-width:720px) {
+  .draw-result-grid {
+    grid-template-columns: repeat(10, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    padding: 4px 0 6px !important;
+  }
+
+  .draw-number {
+    width: 30px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    font-size: 12px !important;
+    border-width: 1.5px !important;
+  }
+
+  .draw-stage {
+    height: 185px !important;
+  }
+
+  .draw-stage-ring {
+    width: 94px !important;
+    height: 94px !important;
+  }
+
+  .draw-stage-ring span {
+    font-size: 42px !important;
+  }
+
+  @keyframes kenoBallFlyToResult {
+    0% {
+      transform: translateY(72px) scale(.38);
+      opacity: 0;
+    }
+    18% {
+      transform: translateY(8px) scale(1.08);
+      opacity: 1;
+    }
+    40% {
+      transform: translateY(-10px) scale(1);
+    }
+    72% {
+      transform: translateY(-78px) scale(.70);
+    }
+    100% {
+      transform: translateY(-125px) scale(.36);
+      opacity: .10;
+    }
+  }
+}
